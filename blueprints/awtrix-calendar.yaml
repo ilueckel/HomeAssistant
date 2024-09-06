@@ -1,0 +1,207 @@
+blueprint:
+  name: AWTRIX Calendar Notifier
+  description: 'This blueprint will print notification when calendar event happens.
+
+    [Google calendar integration](https://www.home-assistant.io/integrations/google)
+    was used for initial testing. Other calendars might work too.
+
+    * Shows calender events of today with their time and without icon
+    * Shows calender events of tomorrow with the calendar icon of that day
+    * Rainbox color when the event text contains a 🌈
+    * Day events shown without time
+
+    Import the following icons from https://developer.lametric.com/icons :
+    * 11542 - 11571
+    * 11572
+
+    Events are refreshed every 5 minutes in interval from configurable amount of hours
+    before event start time till event start.
+
+    Inspired by awesome work of blueforcer '
+  domain: automation
+  input:
+    awtrix:
+      name: AWTRIX Device
+      description: Select the Awtrix device
+      selector:
+        device:
+          integration: mqtt
+          manufacturer: Blueforcer
+          model: AWTRIX 3
+          multiple: true
+    app_name:
+      name: Awtrix Application name
+      description: This is the app name listed in the MQTT topic - it should be unique
+      selector:
+        text:
+          multiple: false
+          multiline: false
+      default: calendar_notifier
+    calendar:
+      name: Calendar with schedule
+      description: A calendar with schedule
+      selector:
+        entity:
+          multiple: false
+    message_attr_name:
+      name: Name of calendar event message attribute
+      description: This is the name of calendar event message attribute
+      selector:
+        text:
+          multiple: false
+          multiline: false
+      default: summary
+    start_time_attr_name:
+      name: Name of calendar event start time attribute
+      description: This is the name of calendar event start time attribute
+      selector:
+        text:
+          multiple: false
+          multiline: false
+      default: start
+    hours_before:
+      name: Number of Hours before Event
+      description: Number of hours to start notify before actual event
+      selector:
+        number:
+          max: 96.0
+          min: 0.0
+          unit_of_measurement: hours
+          mode: box
+          step: 1.0
+      default: 24
+    calendar_icon_map:
+      name: A day-of-month icon map
+      description: A map to link the day of the month to an icon
+      default: '{
+    "10": "11551",
+    "11": "11552",
+    "12": "11553",
+    "13": "11554",
+    "14": "11555",
+    "15": "11556",
+    "16": "11557",
+    "17": "11558",
+    "18": "11542",
+    "19": "11559",
+    "20": "11560",
+    "21": "11561",
+    "22": "11562",
+    "23": "11563",
+    "24": "11564",
+    "25": "11565",
+    "26": "11566",
+    "27": "11567",
+    "28": "11568",
+    "29": "11569",
+    "30": "11570",
+    "31": "11571",
+    "01": "11543",
+    "02": "11544",
+    "03": "11545",
+    "04": "11546",
+    "05": "11547",
+    "06": "11548",
+    "07": "11549",
+    "08": "11572",
+    "09": "11550"
+  }'
+    duration:
+      name: Duration (in seconds)
+      description: Sets how long the app or notification should be displayed.
+      default: '10'
+    lifetime:
+      name: Lifetime of the app (in seconds)
+      description: Removes the custom app when there is no update after the given
+        time in seconds. Keep this value higher than 59 seconds to get the AWTRIX
+        app automatically deleted when disabling the automation.
+      default: '300'
+    push_icon:
+      name: Icon Mode
+      description: "Please select the pushIcon setting for the icon\n\n  - `0`  Icon
+        doesn't move\n\n  - `1`  Icon moves with text and will not appear again\n\n
+        \ - `2` Icon moves with text but appears again when the text starts to scroll
+        again\n"
+      selector:
+        select:
+          options:
+          - label: Icon doesn't move (default)
+            value: '0'
+          - label: Icon moves with text and will not appear again
+            value: '1'
+          - label: Icon moves with text but appears again when the text starts to
+              scroll again
+            value: '2'
+          custom_value: false
+          multiple: false
+          sort: false
+  source_url: https://github.com/ilueckel/HomeAssistant/blob/main/blueprints/awtrix-calendar.yaml
+mode: single
+variables:
+  device_ids: !input awtrix
+  app_name: !input app_name
+  devices_topics: '{%- macro get_device_topic(device_id) %}  {{- states((device_entities(device_id)
+    | select(''search'',''device_topic'') | list)[0]) }} {%- endmacro %} {%- set ns
+    = namespace(devices=[]) %} {%- for device_id in device_ids %} {%- set device=get_device_topic(device_id)|replace(''
+    '','''') %} {% set ns.devices = ns.devices + [ device ] %} {%- endfor %} {{ ns.devices
+    | reject(''match'',''unavailable'') | list}}'
+  calendar: !input calendar
+  message_attr_name: !input message_attr_name
+  start_time_attr_name: !input start_time_attr_name
+  hours_before: !input hours_before
+  calendar_icon_map: !input calendar_icon_map
+  duration: !input duration
+  lifetime: !input lifetime
+  push_icon: !input push_icon
+trigger:
+- platform: time_pattern
+  minutes: /5
+condition: []
+action:
+- service: calendar.get_events
+  target:
+    entity_id: '{{calendar}}'
+  data:
+    duration:
+      hours: '{{hours_before}}'
+  response_variable: calendar_events
+- variables:
+    events_output: |
+      {% set data = namespace(output=[]) %}
+      {% set today = now().date() %}
+      {% set calendar_icon_map = calendar_icon_map|from_json %}
+      {% for event in calendar_events[calendar].events %}
+         {% set event_start = as_local(as_datetime(event[start_time_attr_name])) %}
+         {% set day_event = event[start_time_attr_name]|length == 10 %}
+         {% set rainbow = false %}
+         {% if event[message_attr_name].find("🌈") >= 0 %}
+          {% set rainbow = true %}
+         {% endif %}
+         {% if not day_event %}
+          {% set formatted_date = event_start.strftime("%H:%M") %}
+         {% else %}
+          {% set formatted_date = "" %}
+         {% endif %}
+         {% if event[message_attr_name].startswith(formatted_date) %}
+           {% set formatted_date = "" %}
+         {% endif %}
+          {% if event_start.date() == today %}
+            {% set icon = "" %}
+          {% else %}
+            {% set icon = calendar_icon_map[event_start.strftime("%d")] %}
+          {% endif %}
+          {% if icon == Undefined %}
+            {% set icon = "" %}
+          {% endif %}
+         {% set data.output = data.output + [{"text": (formatted_date + " " + event[message_attr_name]).strip(), "rainbox": rainbow, "icon": icon, "scrollSpeed": 75, "pushIcon": push_icon, "repeat": 1, "duration": duration, "textOffset": 1, "textCase": 2, "lifetime": lifetime }] %}
+      {% endfor %}
+      {{ data.output }}
+- repeat:
+    for_each: '{{ devices_topics }}'
+    sequence:
+    - service: mqtt.publish
+      data:
+        qos: 0
+        retain: false
+        topic: '{{ repeat.item }}/custom/{{app_name}}'
+        payload: '{{events_output}}'
