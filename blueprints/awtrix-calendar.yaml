@@ -6,16 +6,24 @@ blueprint:
     was used for initial testing. Other calendars might work too.
 
     * Shows calender events of today with their time and without icon
+
     * Shows calender events of tomorrow with the calendar icon of that day
+    
     * Rainbox color when the event text contains a 🌈
+
     * Day events shown without time
 
+
     Import the following icons from https://developer.lametric.com/icons :
+
     * 11542 - 11571
+
     * 11572
+
 
     Events are refreshed every 5 minutes in interval from configurable amount of hours
     before event start time till event start.
+
 
     Inspired by awesome work of blueforcer '
   domain: automation
