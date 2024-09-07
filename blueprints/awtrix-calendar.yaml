@@ -212,4 +212,4 @@ action:
         qos: 0
         retain: false
         topic: '{{ repeat.item }}/custom/{{app_name}}'
-        payload: '{{events_output}}'
+        payload: '{{events_output|to_json}}'
