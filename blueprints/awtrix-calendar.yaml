@@ -201,7 +201,7 @@ action:
           {% if icon == Undefined %}
             {% set icon = "" %}
           {% endif %}
-         {% set data.output = data.output + [{"text": (formatted_date + " " + event[message_attr_name]).strip(), "rainbox": rainbow, "icon": icon, "scrollSpeed": 75, "pushIcon": push_icon, "repeat": 1, "duration": duration, "textOffset": 1, "textCase": 2, "lifetime": lifetime }] %}
+         {% set data.output = data.output + [{"text": (formatted_date + " " + event[message_attr_name]).strip(), "rainbow": rainbow, "icon": icon, "scrollSpeed": 75, "pushIcon": push_icon, "repeat": 1, "duration": duration, "textOffset": 1, "textCase": 2, "lifetime": lifetime }] %}
       {% endfor %}
       {{ data.output }}
 - repeat:
